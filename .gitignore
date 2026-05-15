@@ -1,0 +1,73 @@
+# ============================================================
+# Visual FoxPro - Artefactos de compilaci n y temporales
+# ============================================================
+*.fxp
+*.app
+*.exe
+*.err
+*.log
+*.bak
+
+# Archivos de  ndice (se regeneran)
+*.cdx
+*.idx
+*.ndx
+
+# Archivos temporales de FoxPro
+*.tmp
+~*.*
+sys*.tmp
+
+# Archivos de configuraci n local del usuario
+config.fpw
+foxuser.dbf
+foxuser.fpt
+foxuser.cdx
+
+# ============================================================
+# Backups generados por el MCP
+# ============================================================
+.mcp_backups/
+.mcp_logs/
+
+# ============================================================
+# Node.js (servidor MCP)
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.pnp.*
+.env
+.env.local
+
+# ============================================================
+# Sistema operativo
+# ============================================================
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ============================================================
+# Editor / IDE
+# ============================================================
+.vscode/*.local.json
+.vscode/settings.local.json
+.idea/
+*.swp
+*.swo
+
+# ============================================================
+# Claude Code (configuración local con rutas de usuario)
+# ============================================================
+.claude/settings.json
+.claude/settings.local.json
+
+# ============================================================
+# Mantener en el repo
+# ============================================================
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+!.vscode/build_project.prg

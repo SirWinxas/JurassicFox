@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "albertromkes.tasks",
+    "tomoki1207.vfp-language",
+    "DBaeumer.dbf-viewer",
+    "eamodio.gitlens",
+    "ms-vscode.powershell"
+  ]
+}

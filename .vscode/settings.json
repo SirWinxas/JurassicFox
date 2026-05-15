@@ -1,0 +1,45 @@
+{
+  "files.associations": {
+    "*.prg": "foxpro",
+    "*.spr": "foxpro",
+    "*.mpr": "foxpro",
+    "*.qpr": "foxpro",
+    "*.h": "foxpro",
+    "*.fpw": "ini",
+    "*.pjx": "binary",
+    "*.scx": "binary",
+    "*.vcx": "binary",
+    "*.frx": "binary",
+    "*.lbx": "binary",
+    "*.mnx": "binary",
+    "*.dbc": "binary",
+    "*.dbf": "binary",
+    "*.fpt": "binary",
+    "*.cdx": "binary"
+  },
+  "files.encoding": "windows1252",
+  "files.autoGuessEncoding": false,
+  "files.eol": "\r\n",
+  "files.exclude": {
+    "**/*.fxp": true,
+    "**/*.app": true,
+    "**/*.err": true,
+    "**/*.cdx": true,
+    "**/*.bak": true,
+    "**/.mcp_backups": false
+  },
+  "search.exclude": {
+    "**/*.fxp": true,
+    "**/*.app": true,
+    "**/.mcp_backups": true,
+    "**/node_modules": true
+  },
+  "editor.tabSize": 3,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "[foxpro]": {
+    "editor.wordWrap": "off",
+    "editor.rulers": [120]
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}

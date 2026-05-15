@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "foxpro": {
+      "command": "bun",
+      "args": [
+        "C:/Users/CAMBIA_ESTO/Desktop/proyectos/JurassicFox/foxpro-mcp/server.js"
+      ],
+      "env": {
+        "VFP_PROJECT_PATH": "C:/ruta/a/tu/proyecto/foxpro",
+        "VFP_ENCODING": "cp1252",
+        "VFP_ALLOW_WRITE": "true",
+        "VFP_MAX_FILE_SIZE": "5242880",
+        "VFP_MAX_SEARCH_RESULTS": "500",
+        "VFP_MAX_QUERY_ROWS": "1000"
+      }
+    }
+  }
+}

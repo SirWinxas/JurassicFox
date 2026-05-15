@@ -1,0 +1,130 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "VFP: Ejecutar PRG actual",
+      "type": "shell",
+      "command": "${config:foxpro.vfpPath}",
+      "args": [
+        "-c${workspaceFolder}\\.vscode\\vfp_config.fpw",
+        "/N",
+        "DO",
+        "${file}"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "VFP: Compilar PRG actual",
+      "type": "shell",
+      "command": "${config:foxpro.vfpPath}",
+      "args": [
+        "/N",
+        "COMPILE",
+        "${file}"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "VFP: Abrir IDE de FoxPro",
+      "type": "shell",
+      "command": "${config:foxpro.vfpPath}",
+      "args": [
+        "-c${workspaceFolder}\\.vscode\\vfp_config.fpw"
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "VFP: Compilar proyecto (.pjx)",
+      "type": "shell",
+      "command": "${config:foxpro.vfpPath}",
+      "args": [
+        "/N",
+        "DO",
+        "${workspaceFolder}\\.vscode\\build_project.prg",
+        "WITH",
+        "\"${input:projectPath}\""
+      ],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MCP: Arrancar servidor (dev)",
+      "type": "shell",
+      "command": "node",
+      "args": ["server.js"],
+      "options": {
+        "cwd": "${workspaceFolder}\\foxpro-mcp"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MCP: Instalar dependencias",
+      "type": "shell",
+      "command": "npm",
+      "args": ["install"],
+      "options": {
+        "cwd": "${workspaceFolder}\\foxpro-mcp"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MCP: Tests",
+      "type": "shell",
+      "command": "npm",
+      "args": ["test"],
+      "options": {
+        "cwd": "${workspaceFolder}\\foxpro-mcp"
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "projectPath",
+      "description": "Ruta absoluta al archivo .pjx",
+      "default": "",
+      "type": "promptString"
+    }
+  ]
+}

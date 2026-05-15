@@ -1,0 +1,119 @@
+{
+  "PROCEDURE": {
+    "scope": "foxpro",
+    "prefix": "proc",
+    "body": [
+      "PROCEDURE ${1:nombre}",
+      "LPARAMETERS ${2:parametros}",
+      "\t$0",
+      "ENDPROC"
+    ],
+    "description": "Procedimiento FoxPro"
+  },
+  "FUNCTION": {
+    "scope": "foxpro",
+    "prefix": "func",
+    "body": [
+      "FUNCTION ${1:nombre}",
+      "LPARAMETERS ${2:parametros}",
+      "\t$0",
+      "ENDFUNC"
+    ],
+    "description": "Funci n FoxPro"
+  },
+  "IF/ENDIF": {
+    "scope": "foxpro",
+    "prefix": "if",
+    "body": [
+      "IF ${1:condicion}",
+      "\t$0",
+      "ENDIF"
+    ]
+  },
+  "IF/ELSE/ENDIF": {
+    "scope": "foxpro",
+    "prefix": "ife",
+    "body": [
+      "IF ${1:condicion}",
+      "\t$0",
+      "ELSE",
+      "\t",
+      "ENDIF"
+    ]
+  },
+  "DO WHILE": {
+    "scope": "foxpro",
+    "prefix": "while",
+    "body": [
+      "DO WHILE ${1:condicion}",
+      "\t$0",
+      "ENDDO"
+    ]
+  },
+  "FOR": {
+    "scope": "foxpro",
+    "prefix": "for",
+    "body": [
+      "FOR ${1:i} = ${2:1} TO ${3:n}",
+      "\t$0",
+      "ENDFOR"
+    ]
+  },
+  "DO CASE": {
+    "scope": "foxpro",
+    "prefix": "case",
+    "body": [
+      "DO CASE",
+      "CASE ${1:condicion1}",
+      "\t$0",
+      "CASE ${2:condicion2}",
+      "\t",
+      "OTHERWISE",
+      "\t",
+      "ENDCASE"
+    ]
+  },
+  "TRY/CATCH": {
+    "scope": "foxpro",
+    "prefix": "try",
+    "body": [
+      "TRY",
+      "\t$0",
+      "CATCH TO loErr",
+      "\t? loErr.Message",
+      "ENDTRY"
+    ]
+  },
+  "SELECT": {
+    "scope": "foxpro",
+    "prefix": "select",
+    "body": [
+      "SELECT ${1:campos} FROM ${2:tabla} ;",
+      "\tWHERE ${3:condicion} ;",
+      "\tINTO CURSOR ${4:cur_resultado}"
+    ]
+  },
+  "USE table": {
+    "scope": "foxpro",
+    "prefix": "use",
+    "body": [
+      "USE ${1:tabla} IN 0 SHARED AGAIN ALIAS ${2:alias}"
+    ]
+  },
+  "Cabecera funci n": {
+    "scope": "foxpro",
+    "prefix": "header",
+    "body": [
+      "***************************************************",
+      "* ${1:Nombre}",
+      "*",
+      "* ${2:Descripci n}",
+      "*",
+      "* Par metros:",
+      "*   ${3:param1} - ${4:descripci n}",
+      "*",
+      "* Retorna: ${5:tipo - descripci n}",
+      "***************************************************"
+    ]
+  }
+}
