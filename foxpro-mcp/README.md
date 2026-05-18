@@ -90,11 +90,57 @@ Cubren:
 - Lector DBF: header, registros, filtros, registros borrados, conteo
 - Encoding: roundtrip CP1252, mapeo de codepage byte, detecci n autom tica
 
+## Adaptador HTTP
+
+`http_adapter.js` permite usar el lector DBF desde procesos externos sin
+registrar un cliente MCP. Esta pensado para migraciones de datos, auditorias e
+integraciones temporales como Comercio365.
+
+Arranque:
+
+```powershell
+$env:VFP_PROJECT_PATH="C:\BitTPV44\Datos"
+npm run http -- --port 3100
+```
+
+Tambien se puede ejecutar sin script:
+
+```powershell
+$env:VFP_PROJECT_PATH="C:\BitTPV44\Datos"
+node .\http_adapter.js --port 3100
+```
+
+Endpoints:
+
+| Endpoint | Metodo | Body | Respuesta |
+| -------- | ------ | ---- | --------- |
+| `/health` | `GET` | - | `{ ok, projectPath, maxQueryRows }` |
+| `/query` | `POST` | `{ "table": "articulos", "where": [...] }` | `{ rows, count }` |
+
+Ejemplo:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:3100/query `
+  -ContentType "application/json" `
+  -Body '{"table":"clientes"}'
+```
+
+Detalles:
+
+- Escucha solamente en `127.0.0.1`.
+- Resuelve tablas con o sin extension `.dbf`.
+- Realiza paginacion interna de 10.000 filas para devolver todos los registros.
+- Usa `VFP_MAX_QUERY_ROWS=50000` por defecto si no se ha definido otro valor.
+- Reutiliza `query_dbf` y las protecciones de ruta de `config.js`.
+
 ## Arquitectura
 
 ```
 server.js                Stdio + registro de herramientas con @modelcontextprotocol/sdk
 config.js                Resoluci n de env vars + path traversal protection
+http_adapter.js          API local GET /health y POST /query para migraciones
 tools/
   file_tools.js          Fase 3: c digo fuente
   dbf_tools.js           Fase 4: tablas DBF

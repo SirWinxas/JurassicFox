@@ -147,6 +147,53 @@ A partir de ahora Claude tiene acceso a tu proyecto FoxPro.
 
 ---
 
+## Adaptador HTTP para migraciones
+
+Ademas del servidor MCP por `stdio`, JurassicFox incluye un adaptador HTTP
+ligero para scripts de migracion o procesos externos que solo necesitan leer
+tablas DBF sin hablar el protocolo MCP.
+
+El adaptador vive en `foxpro-mcp/http_adapter.js` y expone:
+
+| Endpoint | Metodo | Uso |
+| --- | --- | --- |
+| `/health` | `GET` | Comprueba estado, ruta VFP activa y limite de filas |
+| `/query` | `POST` | Consulta una tabla DBF y devuelve todos los registros paginando internamente |
+
+Arranque desde `foxpro-mcp`:
+
+```powershell
+$env:VFP_PROJECT_PATH="C:\BitTPV44\Datos"
+npm run http -- --port 3100
+```
+
+Tambien puede ejecutarse directamente:
+
+```powershell
+$env:VFP_PROJECT_PATH="C:\BitTPV44\Datos"
+node .\http_adapter.js --port 3100
+```
+
+Ejemplo de consulta:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:3100/query `
+  -ContentType "application/json" `
+  -Body '{"table":"articulos","where":[{"field":"ACTIVO","op":"eq","value":true}]}'
+```
+
+Notas operativas:
+
+- Solo escucha en `127.0.0.1`.
+- Usa el lector DBF existente de JurassicFox.
+- Acepta nombres de tabla con o sin extension `.dbf`.
+- Incrementa `VFP_MAX_QUERY_ROWS` a `50000` si no esta definido.
+- Devuelve `{ rows, count }`, pensado para pipelines DBF -> PostgreSQL/SQLite.
+
+---
+
 ## Seguridad
 
 - **Backups automáticos** antes de cada `write_prg` en `.mcp_backups/`
