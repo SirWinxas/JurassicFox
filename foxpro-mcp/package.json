@@ -1,6 +1,6 @@
 {
   "name": "foxpro-mcp",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Servidor MCP para integrar Claude con proyectos Visual FoxPro (lectura/escritura de .prg y acceso a tablas .dbf)",
   "type": "module",
   "main": "server.js",

@@ -17,13 +17,15 @@ import { config } from "./config.js";
 import { logError, logInfo, stderr } from "./utils/logger.js";
 import { fileTools } from "./tools/file_tools.js";
 import { dbfTools } from "./tools/dbf_tools.js";
+import { vfpTools } from "./tools/vfp_tools.js";
+import { advancedTools } from "./tools/advanced_tools.js";
 
 const SERVER_INFO = {
    name: "foxpro-mcp",
-   version: "0.1.0",
+   version: "0.3.0",
 };
 
-const ALL_TOOLS = [...fileTools, ...dbfTools];
+const ALL_TOOLS = [...fileTools, ...dbfTools, ...vfpTools, ...advancedTools];
 const TOOLS_BY_NAME = new Map(ALL_TOOLS.map((t) => [t.name, t]));
 
 function formatToolListing() {
