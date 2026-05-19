@@ -1,4 +1,5 @@
 # JurassicFox — Entorno de desarrollo Visual FoxPro + Claude
+
          ==--.
    ..-=="  ,'o`)      `.
  ,'         `"'         \
@@ -27,6 +28,7 @@
                               ;,--""-.`\  ,=--':%:%:\
                                          /-".:%%%%%%%\
                                              ;,-"'`)%%)  
+
 Entorno moderno para desarrollar y mantener aplicaciones **Visual FoxPro** desde
 **VS Code** asistido por **Claude** a través de un servidor **MCP**
 (Model Context Protocol).
