@@ -36,14 +36,15 @@ Entorno moderno para desarrollar y mantener aplicaciones **Visual FoxPro** desde
 (Model Context Protocol).
 
 Claude puede leer/escribir tus archivos `.prg`, navegar la estructura del proyecto
-`.pjx`, inspeccionar tablas `.dbf` (incluidos memos) y entender la base de datos
-`.dbc` — todo sin necesidad de tener Visual FoxPro abierto.
+`.pjx`, inspeccionar tablas `.dbf` (incluidos memos), entender la base de datos
+`.dbc`, compilar y ejecutar código vía COM, y detectar código muerto o generar
+documentación — todo sin necesidad de tener Visual FoxPro abierto.
 
 ---
 
 ## Cómo funciona
 
-```
+```text
 ┌─────────────┐     MCP Protocol     ┌──────────────────┐
 │  VS Code    │ ◄──────────────────► │  foxpro-mcp      │
 │  + Claude   │                      │  (Bun / Node.js) │
@@ -52,15 +53,15 @@ Claude puede leer/escribir tus archivos `.prg`, navegar la estructura del proyec
                               ┌───────────────┼───────────────┐
                               │               │               │
                        ┌──────▼──────┐ ┌──────▼──────┐ ┌─────▼──────┐
-                       │ Archivos    │ │ Tablas .dbf │ │ Proyecto   │
-                       │ .prg .scx  │ │ .dbc memos  │ │ .pjx       │
+                       │ Archivos    │ │ Tablas .dbf │ │ VFP Runtime│
+                       │ .prg .scx  │ │ .dbc memos  │ │ vía COM    │
                        └─────────────┘ └─────────────┘ └────────────┘
 ```
 
 Claude Code (extensión de VS Code) se conecta al servidor MCP que está configurado
 en `.claude/settings.json`. Desde ese momento, Claude puede usar las herramientas
 de FoxPro directamente en la conversación: leer código, buscar funciones, consultar
-tablas, escribir cambios con backup automático, etc.
+tablas, compilar, ejecutar, renombrar procedimientos, detectar código muerto, etc.
 
 ---
 
@@ -75,6 +76,7 @@ tablas, escribir cambios con backup automático, etc.
 | Lectura DBF | Lector puro JS (sin ADODB ni drivers externos) |
 | Encoding | [iconv-lite](https://github.com/ashtuchkin/iconv-lite) — soporta CP1252, OEM437 y todos los codepages VFP |
 | Parser FoxPro | Implementación propia en JS |
+| COM Automation | VBScript + cscript.exe (sin módulos nativos) |
 | Lenguaje app | Visual FoxPro 9.0 |
 
 ---
@@ -87,6 +89,7 @@ tablas, escribir cambios con backup automático, etc.
 - [VS Code](https://code.visualstudio.com/)
 - [Claude Code](https://marketplace.visualstudio.com/items?itemName=Anthropic.claude-code) (extensión de VS Code) **o** [Claude Desktop](https://claude.ai/download)
 - [Bun](https://bun.sh) 1.0+
+- Visual FoxPro 9.0 instalado (solo para herramientas COM — Fases 5)
 
 ### 1. Clonar el repositorio
 
@@ -116,7 +119,7 @@ Verifica que todo funciona:
 bun test
 ```
 
-Deberías ver `20 pass, 0 fail`.
+Deberías ver `pass, 0 fail`.
 
 ### 4. Configurar la ruta de tu proyecto FoxPro
 
@@ -176,19 +179,41 @@ A partir de ahora Claude tiene acceso a tu proyecto FoxPro.
 | `get_dbc_info` | Lee un `.dbc`: tablas, vistas, conexiones, relaciones |
 | `read_memo_fields` | Lee campos memo (`.fpt`) de un registro específico |
 
+### Runtime VFP (COM)
+
+Requiere Visual FoxPro 9.0 instalado con servidor COM registrado (`VisualFoxPro.Application`).
+VFP arranca en modo invisible, ejecuta la operación y se cierra (~5-10 s de overhead).
+
+| Herramienta | Descripción |
+| --- | --- |
+| `run_vfp_command` | Ejecuta comandos VFP (PACK, REINDEX, SET…) vía COM |
+| `eval_vfp_expression` | Evalúa una expresión VFP (`DATE()`, `RECCOUNT(…)`) y devuelve el resultado |
+| `compile_prg` | Compila un `.prg` con VFP y devuelve errores de compilación |
+| `run_prg` | Ejecuta un `.prg` y captura el output producido por `?` / `??` |
+
+### Herramientas avanzadas
+
+| Herramienta | Descripción |
+| --- | --- |
+| `rename_procedure` | Renombra un PROCEDURE/FUNCTION en todos los archivos del proyecto (con backup y modo dryRun) |
+| `find_dead_code` | Detecta funciones definidas pero nunca llamadas en el proyecto |
+| `generate_docs` | Genera documentación Markdown desde comentarios de cabecera de los `.prg` |
+| `git_log` | Historial de commits git del proyecto o de un archivo concreto |
+| `git_diff` | Diff git de cambios pendientes, staged o de un commit concreto |
+
 ---
 
 ## Adaptador HTTP para migraciones
 
 Ademas del servidor MCP por `stdio`, JurassicFox incluye un adaptador HTTP
-ligero para scripts de migracion o procesos externos que solo necesitan leer
+ligero para scripts de migración o procesos externos que solo necesitan leer
 tablas DBF sin hablar el protocolo MCP.
 
 El adaptador vive en `foxpro-mcp/http_adapter.js` y expone:
 
-| Endpoint | Metodo | Uso |
+| Endpoint | Método | Uso |
 | --- | --- | --- |
-| `/health` | `GET` | Comprueba estado, ruta VFP activa y limite de filas |
+| `/health` | `GET` | Comprueba estado, ruta VFP activa y límite de filas |
 | `/query` | `POST` | Consulta una tabla DBF y devuelve todos los registros paginando internamente |
 
 Arranque desde `foxpro-mcp`:
@@ -198,7 +223,7 @@ $env:VFP_PROJECT_PATH="C:\BitTPV44\Datos"
 npm run http -- --port 3100
 ```
 
-Tambien puede ejecutarse directamente:
+También puede ejecutarse directamente:
 
 ```powershell
 $env:VFP_PROJECT_PATH="C:\BitTPV44\Datos"
@@ -219,18 +244,35 @@ Notas operativas:
 
 - Solo escucha en `127.0.0.1`.
 - Usa el lector DBF existente de JurassicFox.
-- Acepta nombres de tabla con o sin extension `.dbf`.
-- Incrementa `VFP_MAX_QUERY_ROWS` a `50000` si no esta definido.
-- Devuelve `{ rows, count }`, pensado para pipelines DBF -> PostgreSQL/SQLite.
+- Acepta nombres de tabla con o sin extensión `.dbf`.
+- Incrementa `VFP_MAX_QUERY_ROWS` a `50000` si no está definido.
+- Devuelve `{ rows, count }`, pensado para pipelines DBF → PostgreSQL/SQLite.
 
 ---
 
 ## Seguridad
 
-- **Backups automáticos** antes de cada `write_prg` en `.mcp_backups/`
+- **Backups automáticos** antes de cada `write_prg` y `rename_procedure` en `.mcp_backups/`
 - **Log de auditoría** en `.mcp_logs/mcp-audit.log` con timestamp de cada cambio
 - **Path traversal bloqueado**: las herramientas no pueden salir de `VFP_PROJECT_PATH`
 - **Escritura opcional**: pon `VFP_ALLOW_WRITE=false` para modo solo lectura
+
+---
+
+## Variables de entorno
+
+| Variable | Valor por defecto | Descripción |
+| --- | --- | --- |
+| `VFP_PROJECT_PATH` | (requerido) | Ruta raíz del proyecto FoxPro |
+| `VFP_ENCODING` | `cp1252` | Codepage por defecto para archivos `.prg` |
+| `VFP_ALLOW_WRITE` | `true` | Permite escritura (`write_prg`, `rename_procedure`) |
+| `VFP_MAX_FILE_SIZE` | `5MB` | Tamaño máximo de archivo para `read_prg` |
+| `VFP_MAX_SEARCH_RESULTS` | `500` | Límite de resultados de `search_in_code` |
+| `VFP_MAX_QUERY_ROWS` | `1000` | Límite de filas de `query_dbf` |
+| `VFP_BACKUPS_DIR` | `.mcp_backups/` | Carpeta de backups |
+| `VFP_LOGS_DIR` | `.mcp_logs/` | Carpeta de logs de auditoría |
+| `VFP_COM_PROGID` | `VisualFoxPro.Application` | ProgID del servidor COM de VFP |
+| `VFP_COM_TIMEOUT` | `60000` | Timeout en ms para operaciones COM |
 
 ---
 
@@ -239,35 +281,40 @@ Notas operativas:
 ```text
 JurassicFox/
 ├── .claude/
-│   └── settings.example.json    Plantilla de configuración MCP
+│   ├── settings.example.json    Plantilla de configuración MCP para Claude Code
+│   └── settings.json            Configuración activa (no se sube al repo)
 ├── .vscode/
-│   ├── settings.json            Asociaciones de archivos FoxPro
-│   ├── tasks.json               Tareas: compilar, ejecutar, abrir VFP
+│   ├── settings.json            Asociaciones de archivos FoxPro, encoding CP1252
+│   ├── tasks.json               Tareas: compilar, ejecutar, abrir VFP IDE
 │   ├── extensions.json          Extensiones recomendadas
 │   └── foxpro-snippets.code-snippets
 ├── foxpro-mcp/                  Servidor MCP
 │   ├── server.js                Punto de entrada (stdio MCP)
-│   ├── config.js                Variables de entorno + validación
+│   ├── config.js                Variables de entorno + protección path traversal
+│   ├── http_adapter.js          Adaptador HTTP ligero para migraciones
 │   ├── tools/
-│   │   ├── file_tools.js        Herramientas de código fuente
-│   │   └── dbf_tools.js         Herramientas de base de datos
+│   │   ├── file_tools.js        Herramientas de código fuente (Fase 3)
+│   │   ├── dbf_tools.js         Herramientas de base de datos (Fase 4)
+│   │   ├── vfp_tools.js         Integración COM con runtime VFP (Fase 5)
+│   │   └── advanced_tools.js    Refactoring, dead code, docs, git (Fase 6)
 │   ├── utils/
 │   │   ├── foxpro_parser.js     Parser de PROCEDURE/FUNCTION/DEFINE CLASS
-│   │   ├── dbf_reader.js        Lector DBF puro JS
+│   │   ├── dbf_reader.js        Lector DBF puro JS (sin ADODB)
 │   │   ├── encoding.js          Codepages VFP (CP1252, OEM437…)
-│   │   ├── backup.js            Backups con timestamp
+│   │   ├── backup.js            Backups automáticos con timestamp
+│   │   ├── cache.js             Caché por mtime para evitar relecturas
 │   │   └── logger.js            Logs de auditoría y errores
-│   ├── test/                    Tests con bun:test (20 tests)
-│   └── README.md                Documentación técnica del MCP
-└── plan_desarrollo_foxpro_vscode.md
+│   ├── test/
+│   │   ├── dbf_reader.test.js
+│   │   ├── encoding.test.js
+│   │   ├── parser.test.js
+│   │   ├── advanced_tools.test.js
+│   │   └── cache.test.js
+│   ├── claude_desktop_config.example.json
+│   └── README.md                Documentación técnica del servidor MCP
+├── plan_desarrollo_foxpro_vscode.md
+└── plan_migracion_comercio365.md
 ```
-
----
-
-## Fases pendientes
-
-- **Fase 5** — Integración COM con el runtime de VFP (`run_vfp_command`, `compile_prg`)
-- **Fase 6** — Refactoring automático, detector de código muerto, generador de docs
 
 ---
 
