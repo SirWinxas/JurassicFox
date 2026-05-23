@@ -1,10 +1,10 @@
 /**
  * Parser ligero de sintaxis Visual FoxPro.
- * No es un parser completo: extrae lo  til para indexar y entender estructura
+ * No es un parser completo: extrae lo útil para indexar y entender estructura
  * (PROCEDURE/FUNCTION/DEFINE CLASS/PARAMETERS/comentarios de cabecera).
  *
  * VFP es case-insensitive; las comparaciones se hacen sobre el texto en
- * may sculas, pero se preserva la versi n original para mostrarla.
+ * mayúsculas, pero se preserva la versión original para mostrarla.
  */
 
 const RE_PROC = /^\s*(PROCEDURE|FUNCTION)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:\(([^)]*)\))?/i;
@@ -16,7 +16,7 @@ const RE_COMMENT_LINE = /^\s*(?:\*|&&)(.*)$/;
 const RE_INLINE_COMMENT = /&&(.*)$/;
 
 /**
- * Une l neas continuadas por ";" (continuaci n VFP).
+ * Une líneas continuadas por ";" (continuación VFP).
  * Devuelve un array de {logicalLine, startLine, endLine}.
  */
 function joinContinuationLines(rawLines) {
@@ -26,7 +26,7 @@ function joinContinuationLines(rawLines) {
 
    for (let i = 0; i < rawLines.length; i++) {
       const line = rawLines[i];
-      // Para detectar continuaci n hay que ignorar comentarios inline
+      // Para detectar continuación hay que ignorar comentarios inline
       const codePart = line.replace(RE_INLINE_COMMENT, "");
       const trimmed = codePart.trimEnd();
       const isContinuation = trimmed.endsWith(";");
@@ -60,7 +60,7 @@ function captureLeadingComment(rawLines, startLine) {
       if (m) {
          collected.unshift(m[1].trim());
       } else if (line.trim() === "") {
-         if (collected.length > 0) break; // l nea en blanco corta el bloque
+         if (collected.length > 0) break; // línea en blanco corta el bloque
       } else {
          break;
       }
@@ -101,7 +101,7 @@ export function parsePrg(content) {
          if (currentProc) {
             currentProc.parameters = paramsList;
          } else if (currentClass) {
-            // Par metros de clase no son habituales, pero los guardamos por si acaso
+            // Parámetros de clase no son habituales, pero los guardamos por si acaso
          } else if (topParameters === null) {
             topParameters = paramsList;
          }
@@ -193,8 +193,8 @@ export function parsePrg(content) {
 }
 
 /**
- * Busca todas las llamadas a un identificador (procedimiento/funci n).
- * Heur stica: el nombre seguido de "(" o como par metro de DO.
+ * Busca todas las llamadas a un identificador (procedimiento/función).
+ * Heurística: el nombre seguido de "(" o como parámetro de DO.
  */
 export function findCalls(content, name) {
    const lines = content.split(/\r?\n/);
@@ -205,7 +205,7 @@ export function findCalls(content, name) {
    const calls = [];
    for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // Saltar l neas que sean solo comentarios
+      // Saltar líneas que sean solo comentarios
       if (RE_COMMENT_LINE.test(line)) continue;
       // Quitar comentarios inline para no contar
       const code = line.replace(RE_INLINE_COMMENT, "");

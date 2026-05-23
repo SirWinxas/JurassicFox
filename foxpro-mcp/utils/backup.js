@@ -1,7 +1,7 @@
 /**
- * Sistema de backup autom tico antes de sobreescribir archivos.
+ * Sistema de backup automático antes de sobreescribir archivos.
  * Los backups se guardan en .mcp_backups/<nombre>.<timestamp>.bak
- * Tambi n se registra cada backup en el log de auditor a.
+ * También se registra cada backup en el log de auditoría y en manifest.jsonl.
  */
 
 import fs from "node:fs";
@@ -31,12 +31,43 @@ function ensureBackupsDir() {
    return dir;
 }
 
+function appendToManifest(entry) {
+   try {
+      const dir = ensureBackupsDir();
+      fs.appendFileSync(
+         path.join(dir, "manifest.jsonl"),
+         JSON.stringify(entry) + "\n",
+         "utf8"
+      );
+   } catch { /* no-fatal: el audit log ya tiene el registro */ }
+}
+
+export function getManifestPath() {
+   return path.join(getBackupsDir(), "manifest.jsonl");
+}
+
+/**
+ * Escribe buffer a absPath de forma atómica.
+ * Escribe primero a un temporal en el mismo directorio, luego lo renombra.
+ * Si falla, elimina el temporal y relanza el error.
+ */
+export function atomicWrite(absPath, buffer) {
+   const tmpPath = `${absPath}.tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+   try {
+      fs.writeFileSync(tmpPath, buffer);
+      fs.renameSync(tmpPath, absPath);
+   } catch (err) {
+      try { fs.unlinkSync(tmpPath); } catch { /* ignorar */ }
+      throw err;
+   }
+}
+
 /**
  * Crea un backup de absolutePath si el archivo existe.
- * Retorna la ruta del backup creado, o null si el archivo no exist a.
- * Preserva la subruta relativa al proyecto: foo/bar.prg -> foo/bar.prg.20260515-104530.bak
+ * Retorna la ruta del backup creado, o null si el archivo no existía.
+ * Preserva la subruta relativa al proyecto: foo/bar.prg -> .mcp_backups/foo/bar.prg.20260515-104530.bak
  */
-export function backupFile(absolutePath) {
+export function backupFile(absolutePath, { tool = null, reason = "overwrite" } = {}) {
    if (!fs.existsSync(absolutePath)) return null;
 
    const projectPath = requireProjectPath();
@@ -54,6 +85,17 @@ export function backupFile(absolutePath) {
    const backupPath = path.join(targetDir, backupFilename);
    fs.copyFileSync(absolutePath, backupPath);
 
-   logAudit("BACKUP", { original: relPath, backup: path.relative(projectPath, backupPath) });
+   const originalRel = relPath.replace(/\\/g, "/");
+   const backupRel = path.relative(projectPath, backupPath).replace(/\\/g, "/");
+
+   logAudit("BACKUP", { original: originalRel, backup: backupRel });
+   appendToManifest({
+      timestamp: new Date().toISOString(),
+      original: originalRel,
+      backup: backupRel,
+      tool,
+      reason,
+   });
+
    return backupPath;
 }

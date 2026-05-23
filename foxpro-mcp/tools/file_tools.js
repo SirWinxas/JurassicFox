@@ -1,23 +1,25 @@
 /**
- * Herramientas MCP para manipular el c digo fuente del proyecto FoxPro:
+ * Herramientas MCP para manipular el código fuente del proyecto FoxPro:
  *  - list_prg_files
  *  - read_prg
  *  - write_prg
  *  - search_in_code
  *  - get_procedures
  *  - get_project_tree
+ *  - restore_backup
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { config, requireProjectPath, resolveSafe } from "../config.js";
-import { backupFile } from "../utils/backup.js";
+import { backupFile, atomicWrite, getManifestPath } from "../utils/backup.js";
 import { decode, encode, detectEncoding } from "../utils/encoding.js";
 import { parsePrg } from "../utils/foxpro_parser.js";
 import { readDbfRecords } from "../utils/dbf_reader.js";
 import { logAudit } from "../utils/logger.js";
+import { getOrLoadSync, invalidate } from "../utils/cache.js";
 
-// Extensiones FoxPro relevantes para c digo fuente
+// Extensiones FoxPro relevantes para código fuente
 const SOURCE_EXTENSIONS = [".prg", ".spr", ".mpr", ".qpr", ".h"];
 const FORM_LIBRARY_EXTENSIONS = [".scx", ".vcx", ".frx", ".lbx", ".mnx"]; // son DBFs por debajo
 const ALL_CODE_EXTENSIONS = [...SOURCE_EXTENSIONS, ...FORM_LIBRARY_EXTENSIONS];
@@ -63,9 +65,9 @@ function walkProject(rootDir, extensions, maxResults = Infinity) {
 // ---------------------------------------------------------------------------
 export const list_prg_files = {
    name: "list_prg_files",
-   title: "Listar archivos de c digo FoxPro",
+   title: "Listar archivos de código FoxPro",
    description:
-      "Lista archivos de c digo fuente del proyecto FoxPro: .prg, .spr, .mpr, .qpr, .h, " +
+      "Lista archivos de código fuente del proyecto FoxPro: .prg, .spr, .mpr, .qpr, .h, " +
       ".scx (forms), .vcx (class libraries), .frx (reports), etc. Por defecto incluye todos.",
    inputSchema: {
       type: "object",
@@ -74,11 +76,11 @@ export const list_prg_files = {
             type: "array",
             items: { type: "string" },
             description:
-               "Lista de extensiones a incluir (p.ej. ['.prg', '.scx']). Si se omite, se devuelven todos los formatos de c digo.",
+               "Lista de extensiones a incluir (p.ej. ['.prg', '.scx']). Si se omite, se devuelven todos los formatos de código.",
          },
          subdirectory: {
             type: "string",
-            description: "Subdirectorio del proyecto al que limitar la b squeda (opcional).",
+            description: "Subdirectorio del proyecto al que limitar la búsqueda (opcional).",
          },
       },
    },
@@ -114,9 +116,9 @@ export const list_prg_files = {
 // ---------------------------------------------------------------------------
 export const read_prg = {
    name: "read_prg",
-   title: "Leer archivo de c digo",
+   title: "Leer archivo de código",
    description:
-      "Lee el contenido completo de un archivo de c digo FoxPro (.prg, .spr, .mpr, .qpr, .h) " +
+      "Lee el contenido completo de un archivo de código FoxPro (.prg, .spr, .mpr, .qpr, .h) " +
       "decodificando el encoding correcto (CP1252 por defecto, configurable).",
    inputSchema: {
       type: "object",
@@ -129,12 +131,12 @@ export const read_prg = {
          encoding: {
             type: "string",
             description:
-               "Encoding a usar. Valores t picos: 'cp1252' (default), 'cp850', 'utf8'. " +
-               "Si se omite, se intenta detectar autom ticamente.",
+               "Encoding a usar. Valores típicos: 'cp1252' (default), 'cp850', 'utf8'. " +
+               "Si se omite, se intenta detectar automáticamente.",
          },
          maxBytes: {
             type: "number",
-            description: "L mite de bytes a leer (por defecto: VFP_MAX_FILE_SIZE).",
+            description: "Límite de bytes a leer (por defecto: VFP_MAX_FILE_SIZE).",
          },
       },
    },
@@ -154,7 +156,7 @@ export const read_prg = {
       const ext = path.extname(absPath).toLowerCase();
       if (!isText(ext)) {
          throw new Error(
-            `El archivo ${file} no es texto (extensi n ${ext}). ` +
+            `El archivo ${file} no es texto (extensión ${ext}). ` +
             `Para archivos binarios .scx/.vcx/.frx usa list_prg_files o herramientas DBF.`
          );
       }
@@ -180,11 +182,11 @@ export const read_prg = {
 // ---------------------------------------------------------------------------
 export const write_prg = {
    name: "write_prg",
-   title: "Escribir archivo de c digo",
+   title: "Escribir archivo de código",
    description:
-      "Crea o sobreescribe un archivo de c digo FoxPro. Antes de sobreescribir hace " +
-      "backup autom tico en .mcp_backups/. La operaci n queda registrada en el log de auditor a. " +
-      "Por defecto codifica en CP1252 con terminaciones CRLF (formato VFP est ndar).",
+      "Crea o sobreescribe un archivo de código FoxPro. Antes de sobreescribir hace " +
+      "backup automático en .mcp_backups/. La operación queda registrada en el log de auditoría. " +
+      "Por defecto codifica en CP1252 con terminaciones CRLF (formato VFP estándar).",
    inputSchema: {
       type: "object",
       required: ["file", "content"],
@@ -205,7 +207,7 @@ export const write_prg = {
             type: "string",
             enum: ["crlf", "lf"],
             description:
-               "Terminadores de l nea. Por defecto 'crlf' (est ndar Windows/VFP).",
+               "Terminadores de línea. Por defecto 'crlf' (estándar Windows/VFP).",
          },
          createDirectories: {
             type: "boolean",
@@ -217,7 +219,7 @@ export const write_prg = {
    async run({ file, content, encoding, eol, createDirectories }) {
       if (!config.allowWrite) {
          throw new Error(
-            "Escritura deshabilitada (VFP_ALLOW_WRITE=false). Habil tala para modificar c digo."
+            "Escritura deshabilitada (VFP_ALLOW_WRITE=false). Habilítala para modificar código."
          );
       }
 
@@ -250,12 +252,13 @@ export const write_prg = {
 
       // Backup si existe
       const existed = fs.existsSync(absPath);
-      const backupPath = existed ? backupFile(absPath) : null;
+      const backupPath = existed ? backupFile(absPath, { tool: "write_prg", reason: "overwrite" }) : null;
 
-      // Escribir
+      // Escritura atómica: temporal → rename (no deja el original a medias si el proceso muere)
       const enc = encoding || config.defaultEncoding;
       const buffer = encode(normalized, enc);
-      fs.writeFileSync(absPath, buffer);
+      atomicWrite(absPath, buffer);
+      invalidate(absPath);
 
       logAudit("WRITE", {
          file: path.relative(requireProjectPath(), absPath),
@@ -282,10 +285,10 @@ export const write_prg = {
 // ---------------------------------------------------------------------------
 export const search_in_code = {
    name: "search_in_code",
-   title: "Buscar texto en c digo",
+   title: "Buscar texto en código",
    description:
-      "Busca un texto o expresi n regular en todos los archivos de c digo del proyecto. " +
-      "Por defecto la b squeda es case-insensitive (VFP es case-insensitive).",
+      "Busca un texto o expresi n regular en todos los archivos de código del proyecto. " +
+      "Por defecto la búsqueda es case-insensitive (VFP es case-insensitive).",
    inputSchema: {
       type: "object",
       required: ["pattern"],
@@ -300,7 +303,7 @@ export const search_in_code = {
          },
          caseSensitive: {
             type: "boolean",
-            description: "B squeda sensible a may sculas. Default: false.",
+            description: "Búsqueda sensible a mayúsculas. Default: false.",
          },
          extensions: {
             type: "array",
@@ -313,7 +316,7 @@ export const search_in_code = {
          },
          maxResults: {
             type: "number",
-            description: "L mite de coincidencias devueltas.",
+            description: "Límite de coincidencias devueltas.",
          },
       },
    },
@@ -340,8 +343,10 @@ export const search_in_code = {
          if (results.length >= limit) break;
          let content;
          try {
-            const buffer = fs.readFileSync(full);
-            content = decode(buffer, detectEncoding(buffer));
+            content = getOrLoadSync(full, () => {
+               const buffer = fs.readFileSync(full);
+               return decode(buffer, detectEncoding(buffer));
+            });
          } catch {
             continue;
          }
@@ -379,7 +384,7 @@ export const get_procedures = {
    title: "Extraer procedimientos y funciones",
    description:
       "Extrae la lista de PROCEDUREs, FUNCTIONs y DEFINE CLASS de un archivo .prg, " +
-      "incluyendo l neas inicio/fin, par metros y comentario de cabecera.",
+      "incluyendo líneas inicio/fin, parámetros y comentario de cabecera.",
    inputSchema: {
       type: "object",
       required: ["file"],
@@ -395,8 +400,10 @@ export const get_procedures = {
       if (!fs.existsSync(absPath)) {
          throw new Error(`Archivo no encontrado: ${file}`);
       }
-      const buffer = fs.readFileSync(absPath);
-      const content = decode(buffer, detectEncoding(buffer));
+      const content = getOrLoadSync(absPath, () => {
+         const buffer = fs.readFileSync(absPath);
+         return decode(buffer, detectEncoding(buffer));
+      });
       const parsed = parsePrg(content);
 
       return {
@@ -434,10 +441,10 @@ export const get_procedures = {
 // ---------------------------------------------------------------------------
 export const get_project_tree = {
    name: "get_project_tree",
-   title: "Leer  rbol del proyecto .pjx",
+   title: "Leer árbol del proyecto .pjx",
    description:
       "Lee el archivo .pjx (que internamente es un DBF) y devuelve la lista de archivos " +
-      "registrados en el proyecto FoxPro con su tipo, ruta y descripci n.",
+      "registrados en el proyecto FoxPro con su tipo, ruta y descripción.",
    inputSchema: {
       type: "object",
       required: ["pjxFile"],
@@ -457,9 +464,11 @@ export const get_project_tree = {
          throw new Error(`Se esperaba archivo .pjx, recibido: ${pjxFile}`);
       }
 
-      const { records, meta } = readDbfRecords(absPath, { includeDeleted: false, limit: 5000 });
+      const { records, meta } = getOrLoadSync(absPath, () =>
+         readDbfRecords(absPath, { includeDeleted: false, limit: 5000 })
+      );
 
-      // Tipos de  tem en un .pjx (campo TYPE):
+      // Tipos de ítem en un .pjx (campo TYPE):
       const TYPE_MAP = {
          "B": "Etiqueta (Label)",
          "C": "Clase",
@@ -500,6 +509,91 @@ export const get_project_tree = {
    },
 };
 
+// ---------------------------------------------------------------------------
+// restore_backup
+// ---------------------------------------------------------------------------
+export const restore_backup = {
+   name: "restore_backup",
+   title: "Restaurar backup",
+   description:
+      "Lista los backups disponibles del proyecto o restaura un archivo a un estado anterior. " +
+      "Los backups se crean automáticamente antes de cada write_prg y rename_procedure.",
+   inputSchema: {
+      type: "object",
+      properties: {
+         file: {
+            type: "string",
+            description:
+               "Ruta relativa del archivo a restaurar. Si se omite, lista todos los backups disponibles.",
+         },
+         backupEntry: {
+            type: "string",
+            description:
+               "Ruta relativa del backup concreto a restaurar (campo 'backup' del manifiesto). " +
+               "Si se omite, usa el más reciente para el archivo indicado.",
+         },
+         dryRun: {
+            type: "boolean",
+            description: "Si true, muestra qué se restauraría sin hacer cambios. Default false.",
+         },
+      },
+   },
+   async run({ file, backupEntry, dryRun }) {
+      const projectPath = requireProjectPath();
+      const manifestPath = getManifestPath();
+
+      // Modo listado
+      if (!file && !backupEntry) {
+         if (!fs.existsSync(manifestPath)) {
+            return { backups: [], note: "No hay backups registrados todavía." };
+         }
+         const lines = fs.readFileSync(manifestPath, "utf8").split("\n").filter(Boolean);
+         const entries = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } })
+            .filter(Boolean).slice(-100);
+         return { count: entries.length, backups: entries };
+      }
+
+      // Encontrar el backup a restaurar
+      let absBackup;
+      if (backupEntry) {
+         absBackup = path.isAbsolute(backupEntry)
+            ? backupEntry
+            : path.join(projectPath, backupEntry);
+      } else {
+         if (!fs.existsSync(manifestPath)) {
+            throw new Error("No hay backups registrados en el manifiesto.");
+         }
+         const lines = fs.readFileSync(manifestPath, "utf8").split("\n").filter(Boolean);
+         const entries = lines.map((l) => { try { return JSON.parse(l); } catch { return null; } })
+            .filter(Boolean)
+            .filter((e) => e.original === file.replace(/\\/g, "/"))
+            .reverse();
+         if (entries.length === 0) throw new Error(`No hay backups para: ${file}`);
+         absBackup = path.join(projectPath, entries[0].backup);
+      }
+
+      if (!fs.existsSync(absBackup)) {
+         throw new Error(`Archivo de backup no encontrado: ${absBackup}`);
+      }
+
+      const absTarget = resolveSafe(file);
+      const backupRel = path.relative(projectPath, absBackup).replace(/\\/g, "/");
+
+      if (dryRun) {
+         return { dryRun: true, file, backup: backupRel, action: "se restauraría" };
+      }
+
+      if (!config.allowWrite) {
+         throw new Error("Escritura deshabilitada (VFP_ALLOW_WRITE=false).");
+      }
+
+      atomicWrite(absTarget, fs.readFileSync(absBackup));
+      logAudit("RESTORE", { file, backup: backupRel });
+
+      return { file, restored: true, backup: backupRel };
+   },
+};
+
 // Export agrupado para registrar todas las herramientas en server.js
 export const fileTools = [
    list_prg_files,
@@ -508,4 +602,5 @@ export const fileTools = [
    search_in_code,
    get_procedures,
    get_project_tree,
+   restore_backup,
 ];

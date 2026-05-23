@@ -17,6 +17,7 @@ import {
    countRecords,
    findDbfFiles,
 } from "../utils/dbf_reader.js";
+import { getOrLoadSync } from "../utils/cache.js";
 
 function relPath(absolute) {
    const projectPath = requireProjectPath();
@@ -31,7 +32,7 @@ export const list_dbf_tables = {
    title: "Listar tablas DBF",
    description:
       "Lista todas las tablas .dbf bajo un directorio (recursivo). Para cada tabla devuelve " +
-      "informaci n b sica: ruta, tama o, n mero de campos, tipo (DBF/VFP), si tiene memo asociado.",
+      "información básica: ruta, tamaño, número de campos, tipo (DBF/VFP), si tiene memo asociado.",
    inputSchema: {
       type: "object",
       properties: {
@@ -104,7 +105,7 @@ export const get_table_structure = {
    title: "Estructura de tabla DBF",
    description:
       "Devuelve la estructura completa de una tabla DBF: campos, tipos, longitudes, " +
-      "decimales, flags, y metadata (codepage, fecha actualizaci n, etc).",
+      "decimales, flags, y metadata (codepage, fecha actualización, etc).",
    inputSchema: {
       type: "object",
       required: ["table"],
@@ -119,7 +120,7 @@ export const get_table_structure = {
       const absPath = resolveSafe(table);
       if (!fs.existsSync(absPath)) throw new Error(`Tabla no encontrada: ${table}`);
 
-      const meta = readDbfHeader(absPath);
+      const meta = getOrLoadSync(absPath, () => readDbfHeader(absPath));
       const memoPath = absPath.replace(/\.dbf$/i, ".fpt");
       const hasMemoFile = fs.existsSync(memoPath);
 
@@ -192,7 +193,7 @@ export const query_dbf = {
                },
             },
          },
-         limit: { type: "number", description: "M ximo de filas (default 100, m x VFP_MAX_QUERY_ROWS)." },
+         limit: { type: "number", description: "Máximo de filas (default 100, m x VFP_MAX_QUERY_ROWS)." },
          offset: { type: "number", description: "Filas a saltar al inicio." },
          includeDeleted: {
             type: "boolean",
@@ -298,7 +299,7 @@ export const get_record_count = {
 // ---------------------------------------------------------------------------
 export const get_dbc_info = {
    name: "get_dbc_info",
-   title: "Informaci n del contenedor de BD (.dbc)",
+   title: "Información del contenedor de BD (.dbc)",
    description:
       "Lee un archivo .dbc (Database Container de VFP, que internamente es un DBF) " +
       "y devuelve sus tablas, vistas, conexiones, relaciones y procedimientos almacenados.",
@@ -319,7 +320,7 @@ export const get_dbc_info = {
       const { records } = readDbfRecords(absPath, { includeDeleted: false, limit: 10000 });
 
       // El .dbc tiene una estructura jer rquica con campo PARENTID y OBJECTTYPE.
-      // Tipos t picos: Database, Table, Field, Index, View, Connection, Relation,
+      // Tipos típicos: Database, Table, Field, Index, View, Connection, Relation,
       // StoredProc, Param.
       const byId = new Map();
       for (const r of records) {
@@ -399,7 +400,7 @@ export const read_memo_fields = {
          table: { type: "string", description: "Ruta relativa al .dbf." },
          recordNumber: {
             type: "number",
-            description: "N mero de registro (1-based, como RECNO() en FoxPro).",
+            description: "Número de registro (1-based, como RECNO() en FoxPro).",
          },
          fields: {
             type: "array",

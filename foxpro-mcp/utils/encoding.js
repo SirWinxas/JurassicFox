@@ -66,8 +66,8 @@ export function encode(str, encoding = "cp1252") {
 }
 
 /**
- * Heur stica de detecci n: si el archivo contiene bytes >= 0x80 que tienen sentido
- * en CP850 (caracteres de box-drawing t picos de OEM), se asume CP850. Por defecto CP1252.
+ * Heurística de detección: si el archivo contiene bytes >= 0x80 que tienen sentido
+ * en CP850 (caracteres de box-drawing típicos de OEM), se asume CP850. Por defecto CP1252.
  */
 export function detectEncoding(buffer) {
    if (!buffer || buffer.length === 0) return "cp1252";
@@ -79,7 +79,7 @@ export function detectEncoding(buffer) {
    for (const byte of sample) {
       if (byte >= 0x80) {
          highBytes++;
-         // Caracteres t picos OEM box-drawing: 0xB0-0xDF
+         // Caracteres típicos OEM box-drawing: 0xB0-0xDF
          if (byte >= 0xB0 && byte <= 0xDF) {
             oemMarkers++;
          }

@@ -1,5 +1,5 @@
 /**
- * Configuraci n centralizada del servidor MCP.
+ * Configuración centralizada del servidor MCP.
  * Lee variables de entorno definidas en claude_desktop_config.json o en .env.
  */
 
@@ -32,7 +32,7 @@ export const config = {
       ? path.resolve(process.env.VFP_BACKUPS_DIR)
       : null,
 
-   // Log de auditor a (todas las escrituras quedan registradas)
+   // Log de auditoría (todas las escrituras quedan registradas)
    logsDir: process.env.VFP_LOGS_DIR
       ? path.resolve(process.env.VFP_LOGS_DIR)
       : null,
@@ -43,24 +43,24 @@ export const config = {
    // Permitir escritura de archivos .prg desde el MCP
    allowWrite: parseBool(process.env.VFP_ALLOW_WRITE, true),
 
-   // Tama o m ximo de archivo que se puede leer (bytes)
+   // Tamaño máximo de archivo que se puede leer (bytes)
    maxFileSize: Number(process.env.VFP_MAX_FILE_SIZE || 5 * 1024 * 1024),
 
-   // L mite de resultados para b squedas
+   // Límite de resultados para búsquedas
    maxSearchResults: Number(process.env.VFP_MAX_SEARCH_RESULTS || 500),
 
-   // L mite de filas en queries DBF
+   // Límite de filas en queries DBF
    maxQueryRows: Number(process.env.VFP_MAX_QUERY_ROWS || 1000),
 };
 
 /**
- * Valida que la configuraci n m nima est  presente. Lanza error si no.
- * No se llama autom ticamente: cada herramienta valida lo que necesita.
+ * Valida que la configuración mínima está presente. Lanza error si no.
+ * No se llama automáticamente: cada herramienta valida lo que necesita.
  */
 export function requireProjectPath() {
    if (!config.projectPath) {
       throw new Error(
-         "VFP_PROJECT_PATH no est  definido. Config relo en claude_desktop_config.json"
+         "VFP_PROJECT_PATH no está definido. Configúrelo en claude_desktop_config.json"
       );
    }
    if (!fs.existsSync(config.projectPath)) {

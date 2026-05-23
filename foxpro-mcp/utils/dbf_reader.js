@@ -53,7 +53,7 @@ function hasMemoFile(fileType) {
 
 /**
  * Lee el header y los descriptores de campo de un DBF.
- * Retorna metadata sin leer registros (operaci n barata).
+ * Retorna metadata sin leer registros (operación barata).
  */
 export function readDbfHeader(dbfPath) {
    const fd = fs.openSync(dbfPath, "r");
@@ -158,7 +158,7 @@ function openMemoFile(dbfPath) {
 }
 
 /**
- * Lee el contenido de un bloque memo dado su n mero de bloque.
+ * Lee el contenido de un bloque memo dado su número de bloque.
  */
 function readMemoBlock(memoCtx, blockNumber, encoding) {
    if (!memoCtx || !blockNumber || blockNumber <= 0) return null;
@@ -224,7 +224,7 @@ function parseField(field, recordBuf, memoCtx, encoding) {
          const julian = slice.readInt32LE(0);
          const ms = slice.readInt32LE(4);
          if (julian === 0 && ms === 0) return null;
-         // Conversi n d a juliano -> Date (epoch JS = 2440588 julian)
+         // Conversión d a juliano -> Date (epoch JS = 2440588 julian)
          const date = new Date((julian - 2440588) * 86400000 + ms);
          if (isNaN(date.getTime())) return null;
          return date.toISOString();
@@ -253,12 +253,12 @@ function parseField(field, recordBuf, memoCtx, encoding) {
       case "M":
       case "G":
       case "P": {
-         // Memo: 4 bytes con n mero de bloque (LE en VFP, ASCII en dBASE III)
+         // Memo: 4 bytes con número de bloque (LE en VFP, ASCII en dBASE III)
          let blockNumber;
          if (field.length === 4) {
             blockNumber = slice.readUInt32LE(0);
          } else if (field.length === 10) {
-            // dBASE III: 10 caracteres ASCII con el n mero
+            // dBASE III: 10 caracteres ASCII con el número
             const txt = slice.toString("ascii").trim();
             blockNumber = txt === "" ? 0 : Number(txt);
          } else {
@@ -294,7 +294,7 @@ function parseField(field, recordBuf, memoCtx, encoding) {
  * Lee todos (o un subconjunto) de los registros de un DBF.
  * options: { includeDeleted, limit, offset, fields, where }
  *   - fields: array de nombres de campo para limitar columnas
- *   - where: funci n (row) => boolean
+ *   - where: función (row) => boolean
  */
 export function readDbfRecords(dbfPath, options = {}) {
    const meta = readDbfHeader(dbfPath);

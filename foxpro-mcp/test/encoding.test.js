@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { encode, decode, codepageToEncoding, detectEncoding } from "../utils/encoding.js";
 
 test("encode/decode roundtrip CP1252", () => {
-   const original = "Hola  o   Espa a";
+   const original = "Hola ñ ó España";
    const buf = encode(original, "cp1252");
    const back = decode(buf, "cp1252");
    expect(back).toBe(original);
@@ -19,7 +19,7 @@ test("codepageToEncoding cae a cp1252 por defecto", () => {
 });
 
 test("detectEncoding identifica CP1252 con caracteres ANSI", () => {
-   const text = "Acci n y reducci n";
+   const text = "Acción y reducción";
    const buf = encode(text, "cp1252");
    const detected = detectEncoding(buf);
    expect(detected).toBe("cp1252");

@@ -1,5 +1,5 @@
 /**
- * Logger simple por archivo con auditor a de operaciones.
+ * Logger simple por archivo con auditoría de operaciones.
  * Las escrituras en archivos .prg dejan rastro en mcp-audit.log con timestamp.
  */
 
@@ -43,7 +43,7 @@ export function logInfo(message) {
    writeLine("mcp.log", message);
 }
 
-// Los logs MCP del propio servidor van a stderr (stdout est  reservado al protocolo)
+// Los logs MCP del propio servidor van a stderr (stdout está reservado al protocolo)
 export function stderr(...args) {
    process.stderr.write(args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ") + "\n");
 }

@@ -9,6 +9,9 @@ import {
    generate_docs,
    git_log,
    git_diff,
+   call_graph,
+   search_and_replace,
+   extract_procedure,
 } from "../tools/advanced_tools.js";
 
 // Ruta al repo de JurassicFox (que sí tiene git)
@@ -245,4 +248,248 @@ test("git_diff: no lanza error en working tree limpio o con cambios", async () =
    } finally {
       config.projectPath = origPath;
    }
+});
+
+// ---------------------------------------------------------------------------
+// call_graph
+// ---------------------------------------------------------------------------
+
+test("call_graph: detecta llamada entre dos procedimientos", async () => {
+   writePrg("grafo.prg", `
+PROCEDURE Principal
+   DO Auxiliar
+   Auxiliar()
+ENDPROC
+
+PROCEDURE Auxiliar
+   ? "auxiliar"
+ENDPROC
+`);
+
+   const result = await call_graph.run({ format: "json" });
+
+   expect(result.nodes).toBeGreaterThanOrEqual(2);
+   expect(result.edges).toBeGreaterThanOrEqual(1);
+
+   const edge = result.graph.edges.find(
+      (e) => e.from.toUpperCase() === "PRINCIPAL" && e.to.toUpperCase() === "AUXILIAR"
+   );
+   expect(edge).toBeDefined();
+});
+
+test("call_graph: identifica puntos de entrada y hojas", async () => {
+   writePrg("cadena.prg", `
+PROCEDURE A
+   DO B
+ENDPROC
+
+PROCEDURE B
+   DO C
+ENDPROC
+
+PROCEDURE C
+   ? "hoja"
+ENDPROC
+`);
+
+   const result = await call_graph.run({ format: "json" });
+
+   expect(result.entryPoints).toContain("A");
+   expect(result.leafNodes).toContain("C");
+});
+
+test("call_graph: formato dot contiene digraph y flechas", async () => {
+   const result = await call_graph.run({ format: "dot" });
+
+   expect(typeof result.dot).toBe("string");
+   expect(result.dot).toContain("digraph CallGraph");
+   expect(result.dot).toContain("->");
+});
+
+test("call_graph: formato summary contiene texto legible", async () => {
+   const result = await call_graph.run({ format: "summary" });
+
+   expect(typeof result.summary).toBe("string");
+   expect(result.summary).toContain("Puntos de entrada");
+   expect(result.summary).toContain("Hojas");
+});
+
+test("call_graph: rootProc filtra al subgrafo alcanzable", async () => {
+   writePrg("multi.prg", `
+PROCEDURE Raiz
+   DO Hijo
+ENDPROC
+
+PROCEDURE Hijo
+   ? "hijo"
+ENDPROC
+
+PROCEDURE Ajeno
+   ? "no me llaman desde Raiz"
+ENDPROC
+`);
+
+   const result = await call_graph.run({ format: "json", rootProc: "Raiz" });
+
+   const names = result.graph.nodes.map((n) => n.name.toUpperCase());
+   expect(names).toContain("RAIZ");
+   expect(names).toContain("HIJO");
+   expect(names).not.toContain("AJENO");
+});
+
+test("call_graph: lanza error si rootProc no existe", async () => {
+   await expect(
+      call_graph.run({ format: "json", rootProc: "NoExiste" })
+   ).rejects.toThrow("no encontrado");
+});
+
+// ---------------------------------------------------------------------------
+// search_and_replace
+// ---------------------------------------------------------------------------
+
+test("search_and_replace: dryRun no modifica archivos", async () => {
+   writePrg("sar_dry.prg", `
+PROCEDURE Antiguo
+   ? "texto antiguo"
+ENDPROC
+`);
+
+   const result = await search_and_replace.run({
+      pattern: "antiguo",
+      replacement: "nuevo",
+      dryRun: true,
+   });
+
+   expect(result.dryRun).toBe(true);
+   expect(result.filesChanged).toBeGreaterThan(0);
+   expect(result.totalReplacements).toBeGreaterThan(0);
+
+   const content = fs.readFileSync(path.join(tmpDir, "sar_dry.prg"), "latin1");
+   expect(content).toContain("antiguo");
+});
+
+test("search_and_replace: reemplaza texto literal en múltiples archivos", async () => {
+   writePrg("sar_a.prg", `PROCEDURE ProcA\n   DO_ALGO\nENDPROC\n`);
+   writePrg("sar_b.prg", `PROCEDURE ProcB\n   DO_ALGO\nENDPROC\n`);
+
+   const result = await search_and_replace.run({
+      pattern: "DO_ALGO",
+      replacement: "DO_NUEVO",
+      dryRun: false,
+   });
+
+   expect(result.filesChanged).toBeGreaterThanOrEqual(2);
+   expect(result.totalReplacements).toBeGreaterThanOrEqual(2);
+
+   const a = fs.readFileSync(path.join(tmpDir, "sar_a.prg"), "latin1");
+   const b = fs.readFileSync(path.join(tmpDir, "sar_b.prg"), "latin1");
+   expect(a).toContain("DO_NUEVO");
+   expect(b).toContain("DO_NUEVO");
+   expect(a).not.toContain("DO_ALGO");
+});
+
+test("search_and_replace: soporta regex con grupos de captura", async () => {
+   writePrg("sar_regex.prg", `PROCEDURE RegexTest\n   x = Viejo123\n   y = Viejo456\nENDPROC\n`);
+
+   const result = await search_and_replace.run({
+      pattern: "Viejo(\\d+)",
+      replacement: "Nuevo$1",
+      isRegex: true,
+      dryRun: false,
+   });
+
+   expect(result.filesChanged).toBeGreaterThan(0);
+   const content = fs.readFileSync(path.join(tmpDir, "sar_regex.prg"), "latin1");
+   expect(content).toContain("Nuevo123");
+   expect(content).toContain("Nuevo456");
+   expect(content).not.toContain("Viejo");
+});
+
+test("search_and_replace: lanza error con regex inválida", async () => {
+   await expect(
+      search_and_replace.run({ pattern: "[inválido", replacement: "x", isRegex: true })
+   ).rejects.toThrow("inválida");
+});
+
+// ---------------------------------------------------------------------------
+// extract_procedure
+// ---------------------------------------------------------------------------
+
+test("extract_procedure: mueve procedure a archivo nuevo", async () => {
+   writePrg("ep_origen.prg", `PROCEDURE Extraible
+   ? "soy extraible"
+ENDPROC
+
+PROCEDURE Queda
+   DO Extraible
+ENDPROC
+`);
+
+   const result = await extract_procedure.run({
+      procedureName: "Extraible",
+      sourceFile: "ep_origen.prg",
+      targetFile: "ep_destino.prg",
+   });
+
+   expect(result.linesExtracted).toBeGreaterThan(0);
+   expect(result.created).toBe(true);
+
+   const src = fs.readFileSync(path.join(tmpDir, "ep_origen.prg"), "latin1");
+   expect(src).not.toContain("PROCEDURE Extraible");
+   expect(src).toContain("PROCEDURE Queda");
+
+   const tgt = fs.readFileSync(path.join(tmpDir, "ep_destino.prg"), "latin1");
+   expect(tgt).toContain("PROCEDURE Extraible");
+});
+
+test("extract_procedure: añade a archivo existente sin duplicar", async () => {
+   writePrg("ep_src2.prg", `PROCEDURE Movible
+   RETURN 42
+ENDFUNC
+
+PROCEDURE Resto
+   ? "quedo"
+ENDPROC
+`);
+   writePrg("ep_dst2.prg", `PROCEDURE YaExistente
+   ? "preexisto"
+ENDPROC
+`);
+
+   const result = await extract_procedure.run({
+      procedureName: "Movible",
+      sourceFile: "ep_src2.prg",
+      targetFile: "ep_dst2.prg",
+   });
+
+   expect(result.created).toBe(false);
+
+   const tgt = fs.readFileSync(path.join(tmpDir, "ep_dst2.prg"), "latin1");
+   expect(tgt).toContain("PROCEDURE YaExistente");
+   expect(tgt).toContain("PROCEDURE Movible");
+});
+
+test("extract_procedure: lanza error si proc ya existe en destino", async () => {
+   writePrg("ep_conf_src.prg", `PROCEDURE Duplicado\n   ? "original"\nENDPROC\n`);
+   writePrg("ep_conf_dst.prg", `PROCEDURE Duplicado\n   ? "copia"\nENDPROC\n`);
+
+   await expect(
+      extract_procedure.run({
+         procedureName: "Duplicado",
+         sourceFile: "ep_conf_src.prg",
+         targetFile: "ep_conf_dst.prg",
+      })
+   ).rejects.toThrow("ya existe");
+});
+
+test("extract_procedure: lanza error si proc no existe en origen", async () => {
+   writePrg("ep_noexiste.prg", `PROCEDURE Otro\n   ? "otro"\nENDPROC\n`);
+
+   await expect(
+      extract_procedure.run({
+         procedureName: "NoExiste",
+         sourceFile: "ep_noexiste.prg",
+         targetFile: "ep_noexiste_dst.prg",
+      })
+   ).rejects.toThrow("no encontrado");
 });

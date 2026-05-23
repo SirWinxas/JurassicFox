@@ -15,7 +15,7 @@ ENDPROC
    expect(r.procedures[0].parameters).toEqual(["tcNombre"]);
 });
 
-test("parsePrg: detecta FUNCTION con par metros inline", () => {
+test("parsePrg: detecta FUNCTION con parámetros inline", () => {
    const src = `
 FUNCTION Suma(tnA, tnB)
    RETURN tnA + tnB
@@ -31,17 +31,17 @@ ENDFUNC
 test("parsePrg: captura comentario de cabecera", () => {
    const src = `
 * Esta es la cabecera
-* Multi-l nea
+* Multi-línea
 PROCEDURE Test
    ? "x"
 ENDPROC
 `;
    const r = parsePrg(src);
    expect(r.procedures[0].comment).toContain("cabecera");
-   expect(r.procedures[0].comment).toContain("Multi-l nea");
+   expect(r.procedures[0].comment).toContain("Multi-línea");
 });
 
-test("parsePrg: DEFINE CLASS con m todos", () => {
+test("parsePrg: DEFINE CLASS con métodos", () => {
    const src = `
 DEFINE CLASS MiClase AS Custom
    nValor = 0
@@ -62,7 +62,7 @@ ENDDEFINE
    expect(r.classes[0].methods.length).toBe(2);
 });
 
-test("parsePrg: continuaci n con ; en par metros", () => {
+test("parsePrg: continuación con ; en parámetros", () => {
    const src = `
 FUNCTION LargoFunc
 LPARAMETERS tcUno, ;
@@ -101,7 +101,7 @@ LPARAMETERS tcParam1, tnParam2
    expect(r.parameters).toEqual(["tcParam1", "tnParam2"]);
 });
 
-test("findCalls: encuentra llamadas a funci n", () => {
+test("findCalls: encuentra llamadas a función", () => {
    const src = `
 PROCEDURE Principal
    Suma(1, 2)

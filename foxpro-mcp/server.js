@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Servidor MCP para integraci n FoxPro + Claude.
+ * Servidor MCP para integración FoxPro + Claude.
  *
- * Comunicaci n por STDIO (configurado en claude_desktop_config.json).
- * Registra herramientas para inspeccionar y modificar c digo .prg y consultar tablas .dbf.
+ * Comunicación por STDIO (configurado en claude_desktop_config.json).
+ * Registra herramientas para inspeccionar y modificar código .prg y consultar tablas .dbf.
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -19,13 +19,14 @@ import { fileTools } from "./tools/file_tools.js";
 import { dbfTools } from "./tools/dbf_tools.js";
 import { vfpTools } from "./tools/vfp_tools.js";
 import { advancedTools } from "./tools/advanced_tools.js";
+import { exportTools } from "./tools/export_tools.js";
 
 const SERVER_INFO = {
    name: "foxpro-mcp",
-   version: "0.3.0",
+   version: "0.4.0",
 };
 
-const ALL_TOOLS = [...fileTools, ...dbfTools, ...vfpTools, ...advancedTools];
+const ALL_TOOLS = [...fileTools, ...dbfTools, ...vfpTools, ...advancedTools, ...exportTools];
 const TOOLS_BY_NAME = new Map(ALL_TOOLS.map((t) => [t.name, t]));
 
 function formatToolListing() {

@@ -119,7 +119,7 @@ Verifica que todo funciona:
 bun test
 ```
 
-Deberías ver `pass, 0 fail`.
+Deberías ver `74 pass, 0 fail`.
 
 ### 4. Configurar la ruta de tu proyecto FoxPro
 
@@ -163,10 +163,11 @@ A partir de ahora Claude tiene acceso a tu proyecto FoxPro.
 | --- | --- |
 | `list_prg_files` | Lista archivos `.prg`, `.scx`, `.vcx`, etc. del proyecto |
 | `read_prg` | Lee un archivo de código con encoding correcto (CP1252/OEM) |
-| `write_prg` | Escribe un archivo con backup automático previo |
-| `search_in_code` | Busca texto/regex en todo el código (case-insensitive) |
+| `write_prg` | Escribe un archivo con backup automático y escritura atómica |
+| `search_in_code` | Busca texto/regex en todo el código (case-insensitive, con caché) |
 | `get_procedures` | Extrae PROCEDUREs, FUNCTIONs y DEFINE CLASS de un `.prg` |
 | `get_project_tree` | Lee el árbol de archivos de un `.pjx` |
+| `restore_backup` | Lista los backups disponibles o restaura un archivo a un estado anterior |
 
 ### Base de datos
 
@@ -195,11 +196,21 @@ VFP arranca en modo invisible, ejecuta la operación y se cierra (~5-10 s de ove
 
 | Herramienta | Descripción |
 | --- | --- |
-| `rename_procedure` | Renombra un PROCEDURE/FUNCTION en todos los archivos del proyecto (con backup y modo dryRun) |
+| `rename_procedure` | Renombra un PROCEDURE/FUNCTION en todos los archivos del proyecto (con backup atómico y modo dryRun) |
 | `find_dead_code` | Detecta funciones definidas pero nunca llamadas en el proyecto |
 | `generate_docs` | Genera documentación Markdown desde comentarios de cabecera de los `.prg` |
 | `git_log` | Historial de commits git del proyecto o de un archivo concreto |
 | `git_diff` | Diff git de cambios pendientes, staged o de un commit concreto |
+| `call_graph` | Grafo de dependencias entre procedimientos: quién llama a quién, puntos de entrada y hojas |
+| `search_and_replace` | Búsqueda y reemplazo multi-archivo con texto literal o regex; backup atómico y modo dryRun |
+| `extract_procedure` | Mueve un PROCEDURE/FUNCTION de un archivo `.prg` a otro, creando el destino si no existe |
+
+### Exportación y migración
+
+| Herramienta | Descripción |
+| --- | --- |
+| `export_schema` | Exporta el esquema de todas las tablas DBF en Markdown, Mermaid ER y JSON (con tipos PostgreSQL y SQLite) |
+| `export_table` | Exporta los datos de una tabla DBF en JSON, CSV o SQL (INSERT statements para PostgreSQL o SQLite) |
 
 ---
 
@@ -213,8 +224,10 @@ El adaptador vive en `foxpro-mcp/http_adapter.js` y expone:
 
 | Endpoint | Método | Uso |
 | --- | --- | --- |
-| `/health` | `GET` | Comprueba estado, ruta VFP activa y límite de filas |
-| `/query` | `POST` | Consulta una tabla DBF y devuelve todos los registros paginando internamente |
+| `/health` | `GET` | Estado, versión, ruta VFP activa y lista de endpoints |
+| `/tables` | `GET` | Lista todas las tablas `.dbf` del proyecto |
+| `/structure?table=X` | `GET` | Campos, tipos y metadatos de una tabla |
+| `/query` | `POST` | Consulta registros con filtros opcionales (pagina internamente) |
 
 Arranque desde `foxpro-mcp`:
 
@@ -230,9 +243,16 @@ $env:VFP_PROJECT_PATH="C:\BitTPV44\Datos"
 node .\http_adapter.js --port 3100
 ```
 
-Ejemplo de consulta:
+Ejemplos de uso:
 
 ```powershell
+# Listar todas las tablas
+Invoke-RestMethod -Uri http://127.0.0.1:3100/tables
+
+# Ver estructura de una tabla
+Invoke-RestMethod -Uri "http://127.0.0.1:3100/structure?table=articulos"
+
+# Consultar registros con filtro
 Invoke-RestMethod `
   -Method Post `
   -Uri http://127.0.0.1:3100/query `
@@ -243,10 +263,11 @@ Invoke-RestMethod `
 Notas operativas:
 
 - Solo escucha en `127.0.0.1`.
-- Usa el lector DBF existente de JurassicFox.
-- Acepta nombres de tabla con o sin extensión `.dbf`.
+- Acepta nombres de tabla con o sin extensión `.dbf` (case-insensitive).
 - Incrementa `VFP_MAX_QUERY_ROWS` a `50000` si no está definido.
-- Devuelve `{ rows, count }`, pensado para pipelines DBF → PostgreSQL/SQLite.
+- Body de `POST /query` limitado a 100 KB.
+- Codes HTTP: 200 ok · 400 parámetro inválido · 404 tabla no encontrada · 500 error interno.
+- Devuelve `{ rows, count }` en `/query`, pensado para pipelines DBF → PostgreSQL/SQLite.
 
 ---
 
